@@ -1,0 +1,54 @@
+name: Setup a Poetry-based Python project
+description: Performs steps to get poetry, Python, and Google Artifact Registry configured
+inputs:
+  credentials:
+    description: JSON credentials file for auth
+    type: string
+    required: true
+
+  enable_private_docker:
+    description: Should the environment be updated to enable private GAR-based Docker?
+    type: boolean
+    required: false
+    default: false
+
+  enable_private_pypi:
+    description: Should the environment be updated to enable private GAR-based PyPI?
+    type: boolean
+    required: false
+    default: false
+
+outputs:
+  auth_outputs:
+    description: All outputs provided by authenticating to Google. This is nested.
+    value: ${{ steps.auth.outputs }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Poetry
+      shell: bash
+      run: |
+        pipx install poetry
+
+    - name: Add GAR keyring to poetry
+      if: ${{ inputs.enable_private_pypi }}
+      shell: bash
+      run: |
+        poetry self add keyrings.google-artifactregistry-auth
+
+    - name: Set up Python with version specified in pyproject.toml
+      uses: actions/setup-python@v5
+      with:
+        python-version-file: pyproject.toml
+
+    - name: Auth to Google
+      id: auth
+      uses: 'uwit-iam/action-auth-artifact-registry@main'
+      with:
+        credentials: "${{ secrets.MCI_GCLOUD_AUTH_JSON }}"
+        enable_private_docker: ${{ inputs.enable_private_docker }}
+
+    - name: Install package using Poetry
+      shell: bash
+      run: poetry install
