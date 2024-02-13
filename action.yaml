@@ -1,0 +1,66 @@
+name: Setup a Poetry-based Python project
+description: Performs steps to get poetry, Python, and Google Artifact Registry configured
+inputs:
+  credentials:
+    description: JSON credentials file for auth
+    type: string
+    required: true
+
+  enable_private_docker:
+    description: Should the environment be updated to enable private GAR-based Docker?
+    type: boolean
+    required: false
+    default: false
+
+  enable_private_pypi:
+    description: Should the environment be updated to enable private GAR-based PyPI?
+    type: boolean
+    required: false
+    default: false
+
+outputs:
+  # these are all provided by action-auth-artifact-registry
+  project_id:
+    description: Provided or extracted value for the Google Cloud project ID.
+    value: ${{ steps.auth.outputs.project_id }}
+  credentials_file_path:
+    description: Path on the local filesystem where the generated credentials file resides.
+    value: ${{ steps.auth.outputs.credentials_file_path }}
+  auth_token:
+    description: The Google Cloud federated token (for Workload Identity Federation) or self-signed JWT (for a Service Account Key JSON).
+    value: ${{ steps.auth.outputs.auth_token }}
+  access_token:
+    description: The Google Cloud access token for calling other Google Cloud APIs.
+    value: ${{ steps.auth.outputs.access_token }}
+
+
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Poetry
+      shell: bash
+      run: |
+        pipx install poetry
+
+    - name: Add GAR keyring to poetry
+      if: ${{ inputs.enable_private_pypi }}
+      shell: bash
+      run: |
+        poetry self add keyrings.google-artifactregistry-auth
+
+    - name: Set up Python with version specified in pyproject.toml
+      uses: actions/setup-python@v5
+      with:
+        python-version-file: pyproject.toml
+
+    - name: Auth to Google
+      id: auth
+      uses: 'uwit-iam/action-auth-artifact-registry@main'
+      with:
+        credentials: ${{ inputs.credentials }}
+        enable_private_docker: ${{ inputs.enable_private_docker }}
+
+    - name: Install package using Poetry
+      shell: bash
+      run: poetry install
