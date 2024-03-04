@@ -10,7 +10,7 @@ Example use
 ```
     steps:
       ...
-      - name: uwit-iam/action-setup-poetry-project@mail
+      - name: uwit-iam/action-setup-poetry-project@main
         with:
           credentials: "${{ secrets.MCI_GCLOUD_AUTH_JSON }}"
           enable_private_docker: true
